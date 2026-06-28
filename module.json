@@ -1,0 +1,31 @@
+{
+  "id": "corbeaux-dargent-rebelle",
+  "title": "Corbeaux d'Argent - Rébellion",
+  "description": "Fiche de gestion de rébellion pour une campagne PF2e / Hell's Rebels.",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "Shibito"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "system": [
+    "pf2e"
+  ],
+  "esmodules": [
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/rebellion-sheet.css"
+  ],
+  "languages": [
+    {
+      "lang": "fr",
+      "name": "Français",
+      "path": "lang/fr.json"
+    }
+  ]
+}
