@@ -10,11 +10,23 @@
   ],
   "compatibility": {
     "minimum": "14",
-    "verified": "14"
+    "verified": "14.360"
   },
   "system": [
     "pf2e"
   ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "pf2e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "8.1.2",
+          "verified": "8.1.2"
+        }
+      }
+    ]
+  },
   "esmodules": [
     "scripts/main.js"
   ],
