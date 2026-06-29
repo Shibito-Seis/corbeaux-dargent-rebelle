@@ -5,28 +5,27 @@
       <p>Fiche de rébellion</p>
     </div>
 
-    <div class="rebellion-summary">
+    <div class="rebellion-summary major-scores">
       <label>
-        Autorité
-        <input type="number" name="authority" value="{{authority}}" min="0" step="1" {{#unless editable}}disabled{{/unless}}>
+        Notoriété
+        <input type="number" name="notoriety" value="{{rebellion.notoriety}}" min="0" step="1" {{#unless editable}}disabled{{/unless}}>
       </label>
 
-      <div class="liberation-score">
-        <span>Libération</span>
-        <strong>{{liberation}}</strong>
-      </div>
+      <label>
+        Autorité
+        <input type="number" name="authority" value="{{rebellion.authority}}" min="0" step="1" {{#unless editable}}disabled{{/unless}}>
+      </label>
+
+      <label>
+        Libération
+        <input type="number" name="liberation" value="{{rebellion.liberation}}" min="0" step="1" {{#unless editable}}disabled{{/unless}}>
+      </label>
     </div>
   </header>
 
-  <section class="rebellion-progress">
-    <div class="progress-label">
-      <span>Progression vers la libération</span>
-      <span>{{liberation}} / {{authority}}</span>
-    </div>
-
-    <div class="progress-bar">
-      <div class="progress-fill" style="width: {{victoryRatio}}%;"></div>
-    </div>
+  <section class="manual-notice">
+    <strong>Gestion manuelle :</strong>
+    le MJ ajuste Notoriété, Autorité et Libération selon l'évolution de la campagne.
   </section>
 
   <section class="rebellion-body">
@@ -35,13 +34,12 @@
         <section class="asset-column asset-column-{{group.key}}">
           <header>
             <h2>{{group.label}}</h2>
-            <span>Total : {{group.total}}</span>
           </header>
 
           <ol class="asset-list">
             {{#each group.assets as |asset index|}}
               <li class="asset-row">
-                <span class="asset-index">{{add index 1}}</span>
+                <span class="asset-index">{{asset.displayIndex}}</span>
 
                 <input
                   type="text"
@@ -63,32 +61,9 @@
               </li>
             {{/each}}
           </ol>
-
-          <button type="button" data-action="rollRebellion" data-stat="{{group.key}}">
-            Lancer une action — {{group.label}}
-          </button>
         </section>
       {{/each}}
     </div>
-
-    <section class="authority-tools">
-      <h2>Autorité de Thrune</h2>
-
-      <div class="authority-controls">
-        <label>
-          Niveau / valeur
-          <input type="number" name="authorityDelta" value="1" min="1" step="1" {{#unless editable}}disabled{{/unless}}>
-        </label>
-
-        <button type="button" data-action="adjustAuthority" data-mode="captured" {{#unless editable}}disabled{{/unless}}>
-          + PJ capturé
-        </button>
-
-        <button type="button" data-action="adjustAuthority" data-mode="encounter" {{#unless editable}}disabled{{/unless}}>
-          - Rencontre vaincue
-        </button>
-      </div>
-    </section>
 
     <section class="rebellion-notes">
       <h2>Notes MJ</h2>
@@ -97,11 +72,11 @@
   </section>
 
   <footer class="rebellion-footer">
-    <button type="button" data-action="saveRebellion" {{#unless editable}}disabled{{/unless}}>
+    <button type="button" data-rebellion-save {{#unless editable}}disabled{{/unless}}>
       Sauvegarder
     </button>
 
-    <button type="button" data-action="resetRebellion" {{#unless editable}}disabled{{/unless}}>
+    <button type="button" data-rebellion-reset {{#unless editable}}disabled{{/unless}}>
       Réinitialiser
     </button>
   </footer>

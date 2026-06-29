@@ -183,3 +183,19 @@
   gap: 10px;
   padding-top: 12px;
 }
+
+.corbeaux-rebellion .major-scores {
+  align-items: end;
+}
+
+.corbeaux-rebellion .manual-notice {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(220, 202, 160, 0.25);
+  background: rgba(15, 12, 10, 0.76);
+  color: #e5d2ac;
+}
+
+.corbeaux-rebellion .major-scores input[type="number"] {
+  width: 86px;
+}

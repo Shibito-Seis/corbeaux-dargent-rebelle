@@ -21,12 +21,6 @@ export class CorbeauxRebellionSheet extends HandlebarsApplicationMixin(ActorShee
     window: {
       title: "Corbeaux d'Argent - Rébellion",
       resizable: true
-    },
-    actions: {
-      saveRebellion: CorbeauxRebellionSheet.saveRebellion,
-      adjustAuthority: CorbeauxRebellionSheet.adjustAuthority,
-      rollRebellion: CorbeauxRebellionSheet.rollRebellion,
-      resetRebellion: CorbeauxRebellionSheet.resetRebellion
     }
   };
 
@@ -39,37 +33,53 @@ export class CorbeauxRebellionSheet extends HandlebarsApplicationMixin(ActorShee
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const stored = foundry.utils.deepClone(this.actor.getFlag(MODULE_ID, "rebellion") ?? {});
+    const actor = this.actor ?? this.document;
+    const stored = foundry.utils.deepClone(actor.getFlag(MODULE_ID, "rebellion") ?? {});
     const rebellion = this.constructor.prepareRebellionData(stored);
-    const liberation = this.constructor.calculateLiberation(rebellion);
-    const authority = Number(rebellion.authority ?? 100);
-    const victoryRatio = authority > 0 ? Math.min(100, Math.round((liberation / authority) * 100)) : 100;
 
-    context.actor = this.actor;
+    context.actor = actor;
     context.editable = this.isEditable;
     context.rebellion = rebellion;
-    context.authority = authority;
-    context.liberation = liberation;
-    context.victoryRatio = victoryRatio;
 
     context.assetGroups = STAT_KEYS.map((key) => {
-      const assets = rebellion.assets[key];
-      const total = assets.reduce((sum, asset) => sum + Number(asset.value ?? 0), 0);
-
       return {
         key,
         label: STAT_LABELS[key],
-        assets,
-        total
+        assets: rebellion.assets[key]
       };
     });
 
     return context;
   }
 
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+
+    const root = this.element;
+    if (!root) return;
+
+    root.querySelector("[data-rebellion-save]")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await this.saveSheetData({ notify: true, render: true });
+    });
+
+    root.querySelector("[data-rebellion-reset]")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await this.resetRebellionData();
+    });
+
+    root.querySelectorAll("input, textarea").forEach((input) => {
+      input.addEventListener("change", async () => {
+        await this.saveSheetData({ notify: false, render: false });
+      });
+    });
+  }
+
   static prepareRebellionData(data = {}) {
     const rebellion = {
-      authority: Number.isFinite(Number(data.authority)) ? Number(data.authority) : 100,
+      notoriety: this.clampNonNegative(data.notoriety, 0),
+      authority: this.clampNonNegative(data.authority, 100),
+      liberation: this.clampNonNegative(data.liberation, 0),
       notes: typeof data.notes === "string" ? data.notes : "",
       assets: {}
     };
@@ -81,6 +91,7 @@ export class CorbeauxRebellionSheet extends HandlebarsApplicationMixin(ActorShee
         const source = sourceAssets[index] ?? {};
 
         return {
+          displayIndex: index + 1,
           name: typeof source.name === "string" ? source.name : "",
           value: this.clampAssetValue(source.value)
         };
@@ -90,35 +101,30 @@ export class CorbeauxRebellionSheet extends HandlebarsApplicationMixin(ActorShee
     return rebellion;
   }
 
-  static calculateLiberation(rebellion) {
-    return STAT_KEYS.reduce((total, key) => {
-      const assets = rebellion.assets?.[key] ?? [];
-
-      return total + assets.reduce((subtotal, asset) => {
-        return subtotal + this.clampAssetValue(asset.value);
-      }, 0);
-    }, 0);
-  }
-
   static clampAssetValue(value) {
     const numeric = Number.parseInt(value, 10);
 
     if (!Number.isFinite(numeric)) return 0;
-    return Math.clamp(numeric, 0, 9);
+    return Math.max(0, Math.min(9, numeric));
+  }
+
+  static clampNonNegative(value, fallback = 0) {
+    const numeric = Number.parseInt(value, 10);
+
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(0, numeric);
   }
 
   collectSheetData() {
     const root = this.element;
-    const authorityInput = root.querySelector("[name='authority']");
-    const notesInput = root.querySelector("[name='notes']");
 
     const rebellion = {
-      authority: Number.parseInt(authorityInput?.value ?? "100", 10),
-      notes: notesInput?.value ?? "",
+      notoriety: this.constructor.clampNonNegative(root.querySelector("[name='notoriety']")?.value, 0),
+      authority: this.constructor.clampNonNegative(root.querySelector("[name='authority']")?.value, 100),
+      liberation: this.constructor.clampNonNegative(root.querySelector("[name='liberation']")?.value, 0),
+      notes: root.querySelector("[name='notes']")?.value ?? "",
       assets: {}
     };
-
-    if (!Number.isFinite(rebellion.authority)) rebellion.authority = 100;
 
     for (const key of STAT_KEYS) {
       rebellion.assets[key] = [];
@@ -137,73 +143,40 @@ export class CorbeauxRebellionSheet extends HandlebarsApplicationMixin(ActorShee
     return this.constructor.prepareRebellionData(rebellion);
   }
 
-  async saveSheetData() {
+  async saveSheetData({ notify = false, render = false } = {}) {
+    if (!this.isEditable) {
+      if (notify) ui.notifications.warn("Tu n'as pas les droits nécessaires pour modifier cette fiche.");
+      return null;
+    }
+
+    const actor = this.actor ?? this.document;
     const rebellion = this.collectSheetData();
-    await this.actor.setFlag(MODULE_ID, "rebellion", rebellion);
-    return rebellion;
+
+    try {
+      await actor.setFlag(MODULE_ID, "rebellion", rebellion);
+
+      if (notify) ui.notifications.info("Rébellion sauvegardée.");
+      if (render) this.render();
+
+      return rebellion;
+    } catch (error) {
+      console.error(`${MODULE_ID} | Échec de sauvegarde de la rébellion`, error);
+      ui.notifications.error("Échec de sauvegarde de la fiche de rébellion.");
+      return null;
+    }
   }
 
-  static async saveRebellion() {
-    await this.saveSheetData();
-    ui.notifications.info("Rébellion sauvegardée.");
-    this.render();
-  }
-
-  static async adjustAuthority(event, target) {
-    const rebellion = await this.saveSheetData();
-    const root = this.element;
-    const valueInput = root.querySelector("[name='authorityDelta']");
-    const rawValue = Number.parseInt(valueInput?.value ?? "0", 10);
-    const value = Number.isFinite(rawValue) ? rawValue : 0;
-    const mode = target.dataset.mode;
-
-    if (value <= 0) {
-      ui.notifications.warn("Indique une valeur positive.");
+  async resetRebellionData() {
+    if (!this.isEditable) {
+      ui.notifications.warn("Tu n'as pas les droits nécessaires pour réinitialiser cette fiche.");
       return;
     }
 
-    if (mode === "captured") rebellion.authority += value;
-    if (mode === "encounter") rebellion.authority -= value;
-
-    rebellion.authority = Math.max(0, rebellion.authority);
-
-    await this.actor.setFlag(MODULE_ID, "rebellion", rebellion);
-    this.render();
-  }
-
-  static async rollRebellion(event, target) {
-    const rebellion = await this.saveSheetData();
-    const stat = target.dataset.stat;
-    const assets = rebellion.assets?.[stat] ?? [];
-    const total = assets.reduce((sum, asset) => sum + Number(asset.value ?? 0), 0);
-    const label = STAT_LABELS[stat] ?? "Rébellion";
-
-    const roll = new Roll("1d20 + @bonus", { bonus: total });
-    await roll.evaluate();
-
-    await roll.toMessage({
-      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      flavor: `<strong>Action de rébellion — ${label}</strong><br>Bonus utilisé : ${total}`
-    });
-  }
-
-  static async resetRebellion() {
-    const confirmed = await foundry.applications.api.DialogV2.confirm({
-      window: {
-        title: "Réinitialiser la rébellion"
-      },
-      content: "<p>Réinitialiser les données de rébellion de cette fiche ?</p>",
-      yes: {
-        label: "Réinitialiser"
-      },
-      no: {
-        label: "Annuler"
-      }
-    });
-
+    const confirmed = globalThis.confirm("Réinitialiser les données de rébellion de cette fiche ?");
     if (!confirmed) return;
 
-    await this.actor.setFlag(MODULE_ID, "rebellion", this.constructor.prepareRebellionData({}));
+    const actor = this.actor ?? this.document;
+    await actor.setFlag(MODULE_ID, "rebellion", this.constructor.prepareRebellionData({}));
     this.render();
   }
 }
